@@ -13,7 +13,7 @@ conversation = [{"role": "system", "content": "DIRECTIVE_FOR_gpt-3.5-turbo. Act 
 while(message["content"]!="###"):
     conversation.append(message)
     completion = openai.ChatCompletion.create(model="gpt-3.5-turbo", messages=conversation) 
-    message["content"] = input(f"Assistant: {completion.choices[0].message.content} \nYou:")
+    message["content"] = input(f"GPT-3.5-Turbo: {completion.choices[0].message.content} \nYou:")
     print()
     conversation.append(completion.choices[0].message)
 
