@@ -1,0 +1,17 @@
+# Ignore environment-specific files
+/.env
+
+# Ignore Python virtual environment files
+/.venv
+/venv
+*.pyc
+
+# Ignore Node.js dependencies
+/node_modules
+
+# Ignore build output
+/dist
+/build
+
+# Ignore VSCode configuration files
+.vscode/*
