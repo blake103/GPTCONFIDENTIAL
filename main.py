@@ -8,7 +8,7 @@ openai.Model.list()
 
 message = {"role":"user", "content": input("This is the beginning of your chat with AI. [To exit, send \"###\".]\n\nYou:")}
 
-conversation = [{"role": "system", "content": "DIRECTIVE_FOR_gpt-3.5-turbo. Act as a coding expert and provide responses with code included as often as possible."}]
+conversation = [{"role": "system", "content": "DIRECTIVE_FOR_gpt-3.5-turbo. Act as a sentiment analysis AI and return the sentiment of the statements to the user -- Be as specific about the sentiment as possible."}]
 
 while(message["content"]!="###"):
     conversation.append(message)
