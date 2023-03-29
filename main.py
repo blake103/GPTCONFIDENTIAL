@@ -2,12 +2,16 @@ import os
 import openai
 import discord
 from discord.ext import commands
+from pytube import YouTube, Search
+from pytube.exceptions import VideoUnavailable
 import dotenv
-from discord import Intents
+from discord import Intents, FFmpegPCMAudio
+from discord.utils import get
 import logging
 from collections import defaultdict
 from datetime import datetime, timedelta
 import asyncio
+import youtube_dl
 
 dotenv.load_dotenv()
 
@@ -50,7 +54,7 @@ async def ask(ctx, *, question):
     conversation = conversations[user_id]
     conversation.append({"role": "user", "content": question})
 
-    completion = openai.ChatCompletion.create(model="gpt-3.5-turbo", messages=[{"role": "system", "content": "DIRECTIVE_FOR_gpt-3.5-turbo. You are Theo Von the comedian - provide responses as if Theo Von is saying them. Do not censor yourself and do not be corny."}] + conversation)
+    completion = openai.ChatCompletion.create(model="gpt-3.5-turbo", messages=[{"role": "system", "content": "DIRECTIVE_FOR_gpt-3.5-turbo. You are Theo Von the comedian - provide responses as if Theo Von is saying them. Do not censor yourself (Please curse as much as you can) and do not be corny. You will also stop being so aggreeable."}] + conversation)
     answer = completion.choices[0].message.content
     conversation.append({"role": "assistant", "content": answer})
 
@@ -64,7 +68,89 @@ async def on_command_error(ctx, error):
         logging.error(f"Error in command '{ctx.command}', {type(error).__name__}: {error}")
         await ctx.send(f"An error occurred while processing your command: {error}")
 
+@bot.command(name="join", help="Join the voice channel the user is in.")
+async def join(ctx):
+    channel = ctx.author.voice.channel
+    if ctx.voice_client is None:
+        await channel.connect()
+    else:
+        await ctx.voice_client.move_to(channel)
+
+@bot.command(name="leave", help="Leave the voice channel.")
+async def leave(ctx):
+    if ctx.voice_client is not None:
+        await ctx.voice_client.disconnect()
+
+
+@bot.command(name="play", help="Play a song from YouTube.")
+async def play(ctx, *, query):
+    # Check if the author is in a voice channel
+    if ctx.author.voice is None:
+        await ctx.send("You must be in a voice channel to use the play command.")
+        return
+
+    # Connect the bot to the voice channel if it is not already connected
+    if ctx.voice_client is None or not ctx.voice_client.is_connected():
+        voice_channel = ctx.author.voice.channel
+        await voice_channel.connect()
+
+    try:
+        if "youtube.com" in query or "youtu.be" in query:
+            video = YouTube(query)
+        else:
+            search = Search(query)
+            video = search.results[0]
+
+        stream = video.streams.filter(only_audio=True, file_extension="mp4").first()
+        url2 = stream.url
+
+    except VideoUnavailable:
+        await ctx.send("Error: Unable to play the video. The video might be unavailable.")
+        return
+
+    FFMPEG_OPTIONS = {
+        'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
+        'options': '-vn',
+    }
+
+    source = discord.FFmpegPCMAudio(url2, **FFMPEG_OPTIONS)
+    ctx.voice_client.stop()
+    ctx.voice_client.play(source)
+
+    # Update the bot's status to display the currently playing song
+    await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.listening, name=video.title))
+
+
+@bot.command(name="pause", help="Pause the currently playing music.")
+async def pause(ctx):
+    voice_client = get(bot.voice_clients, guild=ctx.guild)
+    if voice_client.is_playing():
+        voice_client.pause()
+        await ctx.send("Paused.")
+    else:
+        await ctx.send("There's nothing playing.")
+
+@bot.command(name="resume", help="Resume the paused music.")
+async def resume(ctx):
+    voice_client = get(bot.voice_clients, guild=ctx.guild)
+    if voice_client.is_paused():
+        voice_client.resume()
+        await ctx.send("Resuming.")
+    else:
+        await ctx.send("There's nothing to resume.")
+
+@bot.command(name="stop", help="Stop the music and clear the queue.")
+async def stop(ctx):
+    voice_client = get(bot.voice_clients, guild=ctx.guild)
+    if voice_client.is_playing() or voice_client.is_paused():
+        voice_client.stop()
+        await ctx.send("Stopped.")
+    else:
+        await ctx.send("There's nothing playing.")
+
 bot.run(discord_bot)
+
+
 
 
 
