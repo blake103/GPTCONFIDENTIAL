@@ -11,6 +11,9 @@ import logging
 from collections import defaultdict
 from datetime import datetime, timedelta
 import asyncio
+from gtts import gTTS
+import tempfile
+import io
 import youtube_dl
 
 dotenv.load_dotenv()
@@ -58,7 +61,18 @@ async def ask(ctx, *, question):
     answer = completion.choices[0].message.content
     conversation.append({"role": "assistant", "content": answer})
 
-    await ctx.send(answer)
+    if ctx.author.voice is None:
+        await ctx.send(answer)
+
+    # Check if the author is in a voice channel
+    if ctx.author.voice is not None:
+        # Connect the bot to the voice channel if it is not already connected
+        if ctx.voice_client is None or not ctx.voice_client.is_connected():
+            voice_channel = ctx.author.voice.channel
+            await voice_channel.connect()
+
+        await play_tts(ctx, answer)
+
 
 @bot.event
 async def on_command_error(ctx, error):
@@ -147,6 +161,17 @@ async def stop(ctx):
         await ctx.send("Stopped.")
     else:
         await ctx.send("There's nothing playing.")
+
+async def play_tts(ctx, text):
+    tts = gTTS(text, lang="en", tld="co.uk")
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tts_file:
+        tts.save(tts_file.name)
+        source = discord.FFmpegPCMAudio(tts_file.name)
+        ctx.voice_client.stop()
+        ctx.voice_client.play(source)
+
+
+
 
 bot.run(discord_bot)
 
